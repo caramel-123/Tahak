@@ -7,8 +7,52 @@ import {
   Play, ChevronLeft, Plus, QrCode, AlertTriangle, LogOut,
   Wallet, Globe, Languages, Map, Zap, Heart, Share2, Navigation2
 } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import freighterApi from "@stellar/freighter-api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+type GuideVM = {
+  id: string;
+  name: string;
+  location: string;
+  specialty: string;
+  rating: number;
+  reviews: number;
+  tours: number;
+  price: number;
+  languages: string[];
+  badges: string[];
+  verified: boolean;
+  avatar: string;
+  cover: string;
+  bio: string;
+  specialties: string[];
+};
+
+type DestinationVM = { name: string; region: string; guides: number; image: string };
+type TestimonialVM = { name: string; country: string; text: string; avatar: string; rating: number; guide: string };
+type BookingVM = { id: string; guide: string; destination: string; date: string; status: string; amount: number; milestone: string; progress: number; avatar: string };
+
+function guideRowToVM(g: any): GuideVM {
+  return {
+    id: g.id,
+    name: g.name,
+    location: g.location,
+    specialty: g.specialty,
+    rating: Number(g.rating),
+    reviews: g.review_count,
+    tours: g.tours_completed,
+    price: Number(g.price_per_day),
+    languages: g.languages ?? [],
+    badges: g.badges ?? [],
+    verified: g.verified,
+    avatar: g.avatar_url,
+    cover: g.cover_url,
+    bio: g.bio ?? "",
+    specialties: g.specialties ?? [],
+  };
+}
+
 type Page =
   | "landing"
   | "wallet-connect"
@@ -23,7 +67,7 @@ type Role = "tourist" | "guide" | "officer" | null;
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 const GUIDES = [
   {
-    id: 1,
+    id: "1",
     name: "Maria Santos",
     location: "Banaue, Ifugao",
     specialty: "Rice Terraces & Hiking",
@@ -40,7 +84,7 @@ const GUIDES = [
     specialties: ["Rice Terraces", "Mountain Trekking", "Cultural Immersion", "Photography Tours"],
   },
   {
-    id: 2,
+    id: "2",
     name: "Jose Reyes",
     location: "Coron, Palawan",
     specialty: "Island Hopping & Diving",
@@ -57,7 +101,7 @@ const GUIDES = [
     specialties: ["Island Hopping", "Snorkeling", "Freediving", "Kayaking"],
   },
   {
-    id: 3,
+    id: "3",
     name: "Ana Dela Cruz",
     location: "Siargao, Surigao del Norte",
     specialty: "Surfing & Island Life",
@@ -74,7 +118,7 @@ const GUIDES = [
     specialties: ["Surfing", "Island Hopping", "Mangrove Tours", "Sunset Cruises"],
   },
   {
-    id: 4,
+    id: "4",
     name: "Ramon Villanueva",
     location: "Bicol Region",
     specialty: "Mayon Volcano & Waterfalls",
@@ -150,7 +194,7 @@ function StatusChip({ status }: { status: string }) {
   );
 }
 
-function GuideCard({ guide, onClick }: { guide: typeof GUIDES[0]; onClick: () => void }) {
+function GuideCard({ guide, onClick }: { guide: GuideVM; onClick: () => void }) {
   return (
     <div onClick={onClick} className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border cursor-pointer group hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
       <div className="relative h-44 overflow-hidden bg-secondary">
@@ -350,8 +394,26 @@ function TopBar({ page, setPage, role }: { page: Page; setPage: (p: Page) => voi
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
-function LandingPage({ setPage, setRole }: { setPage: (p: Page) => void; setRole: (r: Role) => void }) {
+function LandingPage({ setPage, setRole, goToGuide }: { setPage: (p: Page) => void; setRole: (r: Role) => void; goToGuide: (id: string) => void }) {
   const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const [destinations, setDestinations] = useState<DestinationVM[]>(DESTINATIONS);
+  const [guides, setGuides] = useState<GuideVM[]>(GUIDES);
+  const [testimonials, setTestimonials] = useState<TestimonialVM[]>(TESTIMONIALS);
+
+  useEffect(() => {
+    supabase.from("destinations").select("*").order("guide_count", { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length) setDestinations(data.map((d: any) => ({ name: d.name, region: d.region, guides: d.guide_count, image: d.image_url })));
+      });
+
+    supabase.from("guides").select("*").order("rating", { ascending: false }).limit(4)
+      .then(({ data }) => { if (data && data.length) setGuides(data.map(guideRowToVM)); });
+
+    supabase.from("testimonials").select("*, guides(name)").limit(6)
+      .then(({ data }) => {
+        if (data && data.length) setTestimonials(data.map((t: any) => ({ name: t.name, country: t.country, text: t.text, avatar: t.avatar_url, rating: t.rating, guide: t.guides?.name ?? "" })));
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "Inter, sans-serif" }}>
@@ -445,7 +507,7 @@ function LandingPage({ setPage, setRole }: { setPage: (p: Page) => void; setRole
             </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            {DESTINATIONS.map((d) => (
+            {destinations.map((d) => (
               <button key={d.name} onClick={() => setPage("explore")} className="group rounded-2xl overflow-hidden bg-secondary relative aspect-[3/4] hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
                 <img src={d.image} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -469,8 +531,8 @@ function LandingPage({ setPage, setRole }: { setPage: (p: Page) => void; setRole
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {GUIDES.map((g) => (
-              <GuideCard key={g.id} guide={g} onClick={() => setPage("guide-profile")} />
+            {guides.map((g) => (
+              <GuideCard key={g.id} guide={g} onClick={() => goToGuide(g.id)} />
             ))}
           </div>
           <div className="mt-8 text-center">
@@ -516,14 +578,14 @@ function LandingPage({ setPage, setRole }: { setPage: (p: Page) => void; setRole
           </div>
           <div className="max-w-2xl mx-auto">
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 sm:p-8 text-center">
-              <img src={TESTIMONIALS[testimonialIdx].avatar} alt={TESTIMONIALS[testimonialIdx].name} className="w-16 h-16 rounded-full mx-auto mb-4 object-cover ring-4 ring-[#D8B26E]" />
+              <img src={testimonials[testimonialIdx]?.avatar} alt={testimonials[testimonialIdx]?.name} className="w-16 h-16 rounded-full mx-auto mb-4 object-cover ring-4 ring-[#D8B26E]" />
               <StarRating rating={5} size="md" />
-              <p className="text-white/90 text-base leading-relaxed mt-4 italic">"{TESTIMONIALS[testimonialIdx].text}"</p>
-              <p className="font-bold text-white mt-4" style={{ fontFamily: "Poppins, sans-serif" }}>{TESTIMONIALS[testimonialIdx].name}</p>
-              <p className="text-white/60 text-sm">{TESTIMONIALS[testimonialIdx].country} · Toured with {TESTIMONIALS[testimonialIdx].guide}</p>
+              <p className="text-white/90 text-base leading-relaxed mt-4 italic">"{testimonials[testimonialIdx]?.text}"</p>
+              <p className="font-bold text-white mt-4" style={{ fontFamily: "Poppins, sans-serif" }}>{testimonials[testimonialIdx]?.name}</p>
+              <p className="text-white/60 text-sm">{testimonials[testimonialIdx]?.country} · Toured with {testimonials[testimonialIdx]?.guide}</p>
             </div>
             <div className="flex justify-center gap-2 mt-6">
-              {TESTIMONIALS.map((_, i) => (
+              {testimonials.map((_, i) => (
                 <button key={i} onClick={() => setTestimonialIdx(i)} className={`w-2 h-2 rounded-full transition-all ${i === testimonialIdx ? "bg-[#D8B26E] w-6" : "bg-white/30"}`} />
               ))}
             </div>
@@ -563,10 +625,48 @@ function LandingPage({ setPage, setRole }: { setPage: (p: Page) => void; setRole
 // ─── Wallet Connect Page ──────────────────────────────────────────────────────
 function WalletConnectPage({ setPage, setRole }: { setPage: (p: Page) => void; setRole: (r: Role) => void }) {
   const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [address, setAddress] = useState<string | null>(null);
+  const [network, setNetwork] = useState<string | null>(null);
+  const [balance, setBalance] = useState<string | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role>(null);
 
-  const handleConnect = () => {
-    setConnected(true);
+  const handleConnect = async () => {
+    setConnecting(true);
+    setWalletError(null);
+    try {
+      const { isConnected: installed } = await freighterApi.isConnected();
+      if (!installed) {
+        setWalletError("Freighter extension not detected. Install it from freighter.app to connect a real Stellar wallet.");
+        return;
+      }
+      const access = await freighterApi.requestAccess();
+      if (access.error || !access.address) {
+        setWalletError(access.error?.message || "Wallet access was denied.");
+        return;
+      }
+      setAddress(access.address);
+      setConnected(true);
+
+      const net = await freighterApi.getNetwork();
+      if (!net.error) setNetwork(net.network);
+
+      try {
+        const res = await fetch(`https://horizon-testnet.stellar.org/accounts/${access.address}`);
+        if (res.ok) {
+          const data = await res.json();
+          const native = data.balances?.find((b: any) => b.asset_type === "native");
+          setBalance(native ? Number(native.balance).toFixed(2) : "0.00");
+        } else {
+          setBalance("0.00 (unfunded testnet account)");
+        }
+      } catch {
+        setBalance(null);
+      }
+    } finally {
+      setConnecting(false);
+    }
   };
 
   const handleContinue = () => {
@@ -593,13 +693,18 @@ function WalletConnectPage({ setPage, setRole }: { setPage: (p: Page) => void; s
             <>
               <div className="bg-secondary rounded-2xl p-8 text-center mb-6">
                 <Wallet className="w-16 h-16 text-primary mx-auto mb-3 opacity-60" />
-                <p className="text-sm text-muted-foreground">Connect your Freighter or LOBSTR wallet to continue</p>
+                <p className="text-sm text-muted-foreground">Connect your Freighter wallet to continue</p>
               </div>
-              <button onClick={handleConnect} className="w-full bg-primary hover:bg-[#245530] text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-colors">
-                <Wallet className="w-5 h-5" /> Connect Wallet
-              </button>
-              <button className="w-full mt-3 border border-border text-foreground font-semibold py-3.5 rounded-2xl hover:bg-secondary transition-colors text-sm">
-                Create New Wallet
+              {walletError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3 mb-4">
+                  {walletError}{" "}
+                  {walletError.toLowerCase().includes("install") && (
+                    <a href="https://www.freighter.app/" target="_blank" rel="noreferrer" className="underline font-semibold">Get Freighter →</a>
+                  )}
+                </div>
+              )}
+              <button onClick={handleConnect} disabled={connecting} className="w-full bg-primary hover:bg-[#245530] disabled:opacity-60 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-colors">
+                <Wallet className="w-5 h-5" /> {connecting ? "Connecting…" : "Connect Wallet"}
               </button>
             </>
           ) : (
@@ -607,8 +712,10 @@ function WalletConnectPage({ setPage, setRole }: { setPage: (p: Page) => void; s
               <div className="flex items-center gap-3 bg-secondary rounded-xl p-3 mb-6">
                 <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-primary">Wallet Connected</p>
-                  <p className="text-xs text-muted-foreground font-mono">GA3N...7RKQ · 142.50 XLM</p>
+                  <p className="text-xs font-bold text-primary">Wallet Connected{network ? ` · ${network}` : ""}</p>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {address ? `${address.slice(0, 4)}…${address.slice(-4)}` : ""} {balance ? `· ${balance} XLM` : ""}
+                  </p>
                 </div>
               </div>
               <p className="text-sm font-bold text-foreground mb-3" style={{ fontFamily: "Poppins, sans-serif" }}>Choose your role</p>
@@ -645,11 +752,17 @@ function WalletConnectPage({ setPage, setRole }: { setPage: (p: Page) => void; s
 }
 
 // ─── Explore Page ─────────────────────────────────────────────────────────────
-function ExplorePage({ setPage }: { setPage: (p: Page) => void }) {
+function ExplorePage({ setPage, goToGuide }: { setPage: (p: Page) => void; goToGuide: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [guides, setGuides] = useState<GuideVM[]>(GUIDES);
 
-  const filtered = GUIDES.filter(g =>
+  useEffect(() => {
+    supabase.from("guides").select("*").order("rating", { ascending: false })
+      .then(({ data }) => { if (data && data.length) setGuides(data.map(guideRowToVM)); });
+  }, []);
+
+  const filtered = guides.filter(g =>
     g.name.toLowerCase().includes(search.toLowerCase()) ||
     g.location.toLowerCase().includes(search.toLowerCase()) ||
     g.specialty.toLowerCase().includes(search.toLowerCase())
@@ -689,7 +802,7 @@ function ExplorePage({ setPage }: { setPage: (p: Page) => void }) {
       {/* Guide cards grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filtered.map((g) => (
-          <GuideCard key={g.id} guide={g} onClick={() => setPage("guide-profile")} />
+          <GuideCard key={g.id} guide={g} onClick={() => goToGuide(g.id)} />
         ))}
       </div>
 
@@ -705,9 +818,20 @@ function ExplorePage({ setPage }: { setPage: (p: Page) => void }) {
 }
 
 // ─── Guide Profile Page ───────────────────────────────────────────────────────
-function GuideProfilePage({ setPage }: { setPage: (p: Page) => void }) {
-  const guide = GUIDES[0];
+function GuideProfilePage({ setPage, guideId }: { setPage: (p: Page) => void; guideId: string | null }) {
+  const [guide, setGuide] = useState<GuideVM>(GUIDES[0]);
+  const [reviews, setReviews] = useState<TestimonialVM[]>(TESTIMONIALS);
   const [tab, setTab] = useState<"tours" | "reviews" | "gallery">("tours");
+
+  useEffect(() => {
+    if (!guideId) return;
+    supabase.from("guides").select("*").eq("id", guideId).single()
+      .then(({ data }) => { if (data) setGuide(guideRowToVM(data)); });
+    supabase.from("testimonials").select("*, guides(name)").eq("guide_id", guideId)
+      .then(({ data }) => {
+        if (data) setReviews(data.map((t: any) => ({ name: t.name, country: t.country, text: t.text, avatar: t.avatar_url, rating: t.rating, guide: t.guides?.name ?? "" })));
+      });
+  }, [guideId]);
 
   const tours = [
     { name: "Sunrise Rice Terraces Trek", duration: "1 Day", price: 2800, rating: 4.97, bookings: 312 },
@@ -823,7 +947,7 @@ function GuideProfilePage({ setPage }: { setPage: (p: Page) => void }) {
 
         {tab === "reviews" && (
           <div className="space-y-3 mb-6">
-            {TESTIMONIALS.map((t) => (
+            {reviews.map((t) => (
               <div key={t.name} className="bg-card border border-border rounded-2xl p-4">
                 <div className="flex items-center gap-3 mb-2">
                   <img src={t.avatar} alt={t.name} className="w-9 h-9 rounded-full object-cover" />
@@ -867,8 +991,28 @@ function GuideProfilePage({ setPage }: { setPage: (p: Page) => void }) {
 // ─── Bookings Page ────────────────────────────────────────────────────────────
 function BookingsPage() {
   const [tab, setTab] = useState<"upcoming" | "ongoing" | "completed">("upcoming");
+  const [bookings, setBookings] = useState<BookingVM[]>(BOOKINGS);
 
-  const filtered = BOOKINGS.filter(b => b.status === tab || (tab === "upcoming" && b.status === "upcoming") || (tab === "ongoing" && b.status === "ongoing") || (tab === "completed" && b.status === "completed"));
+  useEffect(() => {
+    supabase.from("bookings").select("*, guides(name, avatar_url)").order("booking_date", { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length) {
+          setBookings(data.map((b: any) => ({
+            id: b.code,
+            guide: b.guides?.name ?? "Guide",
+            destination: b.destination,
+            date: b.booking_date,
+            status: b.status,
+            amount: Number(b.amount),
+            milestone: b.milestone ?? "",
+            progress: b.progress,
+            avatar: b.guides?.avatar_url ?? "",
+          })));
+        }
+      });
+  }, []);
+
+  const filtered = bookings.filter(b => b.status === tab);
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto">
@@ -882,7 +1026,7 @@ function BookingsPage() {
       </div>
 
       <div className="space-y-4">
-        {BOOKINGS.map((b) => (
+        {filtered.map((b) => (
           <div key={b.id} className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
@@ -1268,6 +1412,7 @@ function usePWAMeta() {
 export default function App() {
   const [page, setPage] = useState<Page>("landing");
   const [role, setRole] = useState<Role>(null);
+  const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null);
 
   usePWAMeta();
 
@@ -1277,12 +1422,17 @@ export default function App() {
 
   const handleSetPage = (p: Page) => setPage(p);
 
+  const goToGuide = (id: string) => {
+    setSelectedGuideId(id);
+    setPage("guide-profile");
+  };
+
   const renderPage = () => {
     switch (page) {
-      case "landing": return <LandingPage setPage={handleSetPage} setRole={setRole} />;
+      case "landing": return <LandingPage setPage={handleSetPage} setRole={setRole} goToGuide={goToGuide} />;
       case "wallet-connect": return <WalletConnectPage setPage={handleSetPage} setRole={setRole} />;
-      case "explore": return <ExplorePage setPage={handleSetPage} />;
-      case "guide-profile": return <GuideProfilePage setPage={handleSetPage} />;
+      case "explore": return <ExplorePage setPage={handleSetPage} goToGuide={goToGuide} />;
+      case "guide-profile": return <GuideProfilePage setPage={handleSetPage} guideId={selectedGuideId} />;
       case "bookings": return <BookingsPage />;
       case "guide-dashboard": return <GuideDashboardPage />;
       case "officer-dashboard": return <OfficerDashboardPage />;
