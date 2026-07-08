@@ -7,6 +7,7 @@
 
 🌐 **Live App:** [https://tahak-ecru.vercel.app](https://tahak-ecru.vercel.app)
 📦 **Repo:** [github.com/caramel-123/tahak](https://github.com/caramel-123/tahak) (public)
+🎥 **Demo Video (1–2 min):** _TODO — record a walkthrough (wallet connect → explore guides → booking → contract escrow flow) and link it here_
 
 ---
 
