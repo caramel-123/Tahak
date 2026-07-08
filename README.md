@@ -3,14 +3,42 @@
 > **Discover Trusted Local Guides, Secured by Stellar Escrow**
 > Giving Filipino tour guides a verifiable, on-chain reputation — and giving travelers a safe way to pay for it.
 
+![CI](https://github.com/caramel-123/tahak/actions/workflows/ci.yml/badge.svg)
+
 🌐 **Live App:** [https://tahak-ecru.vercel.app](https://tahak-ecru.vercel.app)
-📦 **Repo:** [github.com/caramel-123/tahak](https://github.com/caramel-123/tahak)
+📦 **Repo:** [github.com/caramel-123/tahak](https://github.com/caramel-123/tahak) (public)
+
+---
+
+## Deployed Contract (Stellar Testnet)
+
+A real Soroban escrow contract, deployed and invoked end-to-end via the Stellar CLI — no mock, no simulated balances.
+
+| Field | Value |
+|-------|-------|
+| Contract | `booking_escrow` |
+| Address | `CCH6XF6GXFN2K3VHFX6RVTW7SF5U3ZU6QI6SWM3Z5JE5GUZ74FY4KBYD` |
+| Wasm hash | `d5f9223041e15550368613e21809b6a3d3f9a36067495d97ae8ff3788a93a597` |
+| Escrowed token | Native XLM SAC (testnet) — `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
+
+> Verify on Stellar Explorer: [stellar.expert/explorer/testnet/contract/CCH6XF6GXFN2K3VHFX6RVTW7SF5U3ZU6QI6SWM3Z5JE5GUZ74FY4KBYD](https://stellar.expert/explorer/testnet/contract/CCH6XF6GXFN2K3VHFX6RVTW7SF5U3ZU6QI6SWM3Z5JE5GUZ74FY4KBYD)
+
+### Transaction hash for contract interaction
+
+A real booking (`TH2847`, 2.8 XLM — mirroring the ₱2,800 Banaue tour in the app's demo data) was created, funded, and released end-to-end:
+
+| Step | Tx hash |
+|------|---------|
+| `fund("TH2847")` — 2.8 XLM moves from tourist → contract | [`be826dfda8fec90ff0581ffa2d6e76ef60f156544217578aca5bda6f2d8106ce`](https://stellar.expert/explorer/testnet/tx/be826dfda8fec90ff0581ffa2d6e76ef60f156544217578aca5bda6f2d8106ce) |
+| `release("TH2847")` — 2.8 XLM moves from contract → guide | [`ce9b7f9b94efc3a036e72c5eec45770bf88604ae220a8a73530c8b702298c951`](https://stellar.expert/explorer/testnet/tx/ce9b7f9b94efc3a036e72c5eec45770bf88604ae220a8a73530c8b702298c951) |
+
+Full transaction list (deploy, init, create_booking, fund, release) and reproduction steps: [contracts/DEPLOYMENT.md](contracts/DEPLOYMENT.md).
 
 ---
 
 ## Project Description
 
-Tahak (Tagalog for "journey" or "traverse") is a tour guide discovery, booking, and reputation platform for the Philippines, built on **React + Supabase + Stellar**. Travelers browse DOT-verified local guides by destination, language, and specialty, book a tour, and pay through a Stellar wallet (Freighter) — with the long-term goal of holding payment in on-chain escrow that releases only as milestones (QR check-ins) are confirmed.
+Tahak (Tagalog for "journey" or "traverse") is a tour guide discovery, booking, and reputation platform for the Philippines, built on **React + Supabase + Stellar**. Travelers browse DOT-verified local guides by destination, language, and specialty, book a tour, and pay through a Stellar wallet (Freighter) — with payment held in on-chain escrow, released only once the tourist confirms the tour milestone is complete.
 
 Tahak avoids the fintech/crypto-exchange aesthetic on purpose. It's meant to feel like **Airbnb + AllTrails + Google Travel**, with the blockchain doing quiet work in the background rather than being the headline.
 
@@ -27,9 +55,9 @@ Tahak's vision is to make that reputation **portable and verifiable**: ratings, 
 ## Features
 
 ### For Tourists
-- 🔎 **Explore Guides** — search and filter by destination, language, price, rating, and specialty
+- 🔎 **Explore Guides** — search and filter by destination, language, price, rating, and specialty (live Supabase data)
 - 🪪 **Verification badges** — DOT Accredited, Barangay Certified, Community Vouched, Top Rated
-- 👤 **Guide profiles** — bio, languages, specialties, tours, real reviews
+- 👤 **Guide profiles** — bio, languages, specialties, tours, real reviews, fetched per-guide by ID
 - 📅 **Bookings dashboard** — Upcoming / Ongoing / Completed, with milestone progress bars
 - 📷 **QR Check-In** flow for confirming tour milestones
 - 🔐 **Connect Freighter wallet** — real Stellar testnet account connection, no username/password
@@ -45,6 +73,67 @@ Tahak's vision is to make that reputation **portable and verifiable**: ratings, 
 
 ---
 
+## Mobile Responsive UI
+
+Tested at a 390×844 mobile viewport.
+
+| Landing | Explore Guides |
+|---|---|
+| ![Landing mobile](docs/screenshots/mobile-landing.png) | ![Explore mobile](docs/screenshots/mobile-explore.png) |
+
+| Guide Profile | Connect Wallet |
+|---|---|
+| ![Guide profile mobile](docs/screenshots/mobile-guide-profile.png) | ![Wallet connect mobile](docs/screenshots/mobile-wallet-connect.png) |
+
+---
+
+## CI/CD Pipeline
+
+GitHub Actions runs on every push/PR to `main`: a frontend job (install → `npm test` → `npm run build`) and a contracts job (`cargo test` against the Soroban contract, wasm32v1-none target). Workflow: [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+![CI pipeline passing](docs/screenshots/ci-pipeline-passing.png)
+
+---
+
+## Test Output
+
+**11 tests — all passing**, split across two suites.
+
+### Frontend (Vitest)
+
+```
+$ npm test
+
+ RUN  v4.1.10 /Users/melfredbernabe/Desktop/tahak
+
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+   Duration  298ms
+```
+
+| Test file | Coverage |
+|-----------|----------|
+| `src/lib/format.test.ts` | `formatPeso()` thousands separators and zero handling, `formatWallet()` address truncation |
+| `src/lib/supabase.test.ts` | `guideRowToVM()` — Supabase row → view-model mapping, including null-field fallbacks |
+
+### Smart contract (Cargo)
+
+```
+$ cd contracts && cargo test
+
+running 4 tests
+test test::test_duplicate_booking_id_fails ... ok
+test test::test_release_before_funding_fails ... ok
+test test::test_refund_returns_funds_to_tourist ... ok
+test test::test_full_escrow_flow_moves_real_token_balances ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+The `test_full_escrow_flow_moves_real_token_balances` test asserts actual token-client balance changes (not just status flags) as funds move tourist → contract → guide.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -52,8 +141,11 @@ Tahak's vision is to make that reputation **portable and verifiable**: ratings, 
 | Frontend | React 18 + TypeScript + Vite |
 | Styling | Tailwind CSS v4 + shadcn/ui |
 | Backend | Supabase (Postgres + REST + Row Level Security) |
-| Wallet | Freighter ([@stellar/freighter-api](https://www.npmjs.com/package/@stellar/freighter-api)) on Stellar Testnet |
-| Balance lookup | Stellar Horizon Testnet API |
+| Smart contract | Rust / Soroban, deployed on Stellar Testnet |
+| Wallet | Freighter ([@stellar/freighter-api](https://www.npmjs.com/package/@stellar/freighter-api)) |
+| Balance / tx lookups | Stellar Horizon Testnet API |
+| Testing | Vitest (frontend), Cargo test (contract) |
+| CI/CD | GitHub Actions |
 | PWA | Web manifest + service worker (installable, offline shell caching) |
 | Deployment | Vercel |
 
@@ -68,7 +160,23 @@ Tahak connects to a **real Freighter wallet** on Stellar Testnet:
 3. Reads the active network via `getNetwork()`
 4. Fetches the real XLM balance from `horizon-testnet.stellar.org`
 
-> **Current scope:** wallet connection and balance reads are real. Escrow — holding a booking's payment on-chain and releasing it against QR-confirmed milestones — is designed in the UI (see Booking and QR Check-In screens) but not yet backed by a deployed Soroban contract. That's the next real build, not a shipped feature — see [Future Scope](#future-scope).
+The frontend does not yet call the deployed `booking_escrow` contract directly (bookings are recorded in Supabase; the contract has been proven out independently via the CLI, see above). Wiring `fund`/`release` into the Booking and QR Check-In screens — with Freighter signing the calls — is the next integration step.
+
+---
+
+## Smart Contract Design
+
+```rust
+pub fn create_booking(env: Env, booking_id: Symbol, tourist: Address, guide: Address, amount: i128) -> Result<(), Error>;
+pub fn fund(env: Env, booking_id: Symbol) -> Result<(), Error>;      // tourist -> contract
+pub fn release(env: Env, booking_id: Symbol) -> Result<(), Error>;   // contract -> guide
+pub fn refund(env: Env, booking_id: Symbol) -> Result<(), Error>;    // contract -> tourist
+pub fn get_booking(env: Env, booking_id: Symbol) -> Option<Booking>;
+```
+
+`fund`, `release`, and `refund` move the contract's own balance of the configured token (native XLM on testnet) via `soroban_sdk::token::Client` — this is a real custodian contract, not a status-only tracker. Source: [contracts/booking_escrow/src/lib.rs](contracts/booking_escrow/src/lib.rs).
+
+**Known simplification:** both `release` and `refund` currently require the tourist's signature (tourist confirms completion, or requests a refund). A production version would gate `refund` behind guide agreement or Tourism Officer dispute resolution.
 
 ---
 
@@ -171,7 +279,8 @@ Row Level Security is enabled on every table: public `SELECT` (guide/destination
 ## Setup Instructions
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v22+
+- [Rust](https://rustup.rs/) + `wasm32v1-none` target, and the [Stellar CLI](https://developers.stellar.org/docs/tools/cli/install-cli) — only needed if you want to rebuild/redeploy the contract
 - [Freighter Wallet](https://freighter.app/) browser extension, switched to **Testnet**
 - A free [Supabase](https://supabase.com) project
 
@@ -182,7 +291,7 @@ git clone https://github.com/caramel-123/tahak.git
 cd tahak
 ```
 
-### 2. Install dependencies
+### 2. Install frontend dependencies
 
 ```bash
 npm install
@@ -211,11 +320,30 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173)
 
-### 6. Connect a testnet wallet
+### 6. Run the tests
+
+```bash
+npm test                # frontend — 7 tests
+cd contracts && cargo test   # contract — 4 tests
+```
+
+### 7. Connect a testnet wallet
 
 1. Install [Freighter](https://freighter.app/) and switch it to **Testnet**
 2. Fund your address via [Stellar Friendbot](https://friendbot.stellar.org/?addr=YOUR_ADDRESS)
 3. Click **Connect Wallet** in the app and approve the Freighter popup
+
+### 8. (Optional) Rebuild and redeploy the contract
+
+```bash
+cd contracts
+stellar contract build
+stellar keys generate my-deployer --network testnet --fund
+stellar contract deploy --wasm target/wasm32v1-none/release/booking_escrow.wasm \
+  --source my-deployer --network testnet --alias my_booking_escrow
+```
+
+Full walkthrough including the native-XLM `init` call: [contracts/DEPLOYMENT.md](contracts/DEPLOYMENT.md).
 
 ---
 
@@ -223,19 +351,28 @@ Open [http://localhost:5173](http://localhost:5173)
 
 ```
 tahak/
+├── .github/workflows/ci.yml    # GitHub Actions: frontend tests+build, contract tests
+├── contracts/
+│   ├── booking_escrow/
+│   │   └── src/lib.rs           # Soroban escrow contract + unit tests
+│   └── DEPLOYMENT.md            # Contract address, tx hashes, reproduction steps
+├── docs/screenshots/            # Mobile UI + CI pipeline screenshots
 ├── public/
-│   ├── manifest.webmanifest   # PWA manifest
-│   ├── sw.js                  # Service worker (cache-first for app assets)
+│   ├── manifest.webmanifest     # PWA manifest
+│   ├── sw.js                    # Service worker (cache-first for app assets)
 │   └── icon.svg
 ├── src/
 │   ├── app/
-│   │   ├── App.tsx             # All pages + components (single-file prototype)
+│   │   ├── App.tsx              # All pages + components (single-file prototype)
 │   │   └── components/
-│   │       ├── ui/             # shadcn/ui primitives
-│   │       └── figma/          # Figma export helpers
+│   │       ├── ui/              # shadcn/ui primitives
+│   │       └── figma/           # Figma export helpers
 │   ├── lib/
-│   │   └── supabase.ts         # Supabase client + row types
-│   ├── styles/                 # Tailwind + theme tokens + fonts
+│   │   ├── supabase.ts          # Supabase client, row types, guideRowToVM mapper
+│   │   ├── supabase.test.ts
+│   │   ├── format.ts            # formatPeso / formatWallet
+│   │   └── format.test.ts
+│   ├── styles/                  # Tailwind + theme tokens + fonts
 │   └── main.tsx
 ├── .env.example
 └── vercel.json
@@ -247,21 +384,22 @@ tahak/
 
 Being upfront about what's real versus illustrative in the current build:
 
-- **No on-chain escrow yet** — booking payments are recorded in Supabase (`bookings.amount`, `.status`, `.progress`), but no Soroban contract holds or releases funds. The "Secured by Stellar Escrow" copy describes the intended design, not a shipped mechanism.
+- **The frontend doesn't call the deployed contract yet.** Booking payments are recorded in Supabase (`bookings.amount`, `.status`, `.progress`); the escrow contract has been proven out independently via CLI (see the real tx hashes above) but isn't wired into the Booking/QR Check-In UI.
 - **No real auth binding** — wallet connection is real, but bookings/reviews aren't yet tied to the connected wallet via Supabase Auth; RLS currently allows public writes for demo purposes.
-- **Guide/Tourism Officer dashboards use static demo data** — only the Landing, Explore, Guide Profile, and Bookings screens are wired to live Supabase queries so far.
+- **Guide/Tourism Officer dashboards use static demo data** — only Landing, Explore, Guide Profile, and Bookings are wired to live Supabase queries so far.
+- **`release`/`refund` both require the tourist's signature** in the current contract — see [Smart Contract Design](#smart-contract-design).
 
 ---
 
 ## Future Scope
 
 ### Near-Term
-- Deploy a Soroban escrow contract — fund on booking, release on QR-confirmed milestone completion
+- Wire the Booking and QR Check-In screens to call `fund`/`release` on the deployed contract via Freighter-signed transactions
 - Bind bookings/reviews to the connected wallet address via Supabase Auth + RLS instead of public write policies
 - Wire Guide Dashboard and Tourism Officer screens to live Supabase data
 
 ### Medium-Term
-- QR Check-In that actually confirms an on-chain milestone, not just a progress bar
+- Gate `refund` behind guide agreement or Tourism Officer dispute resolution instead of tourist-only auth
 - Dispute resolution workflow backed by real escrow state (refund / release / split as contract calls)
 - DOT/barangay verification pipeline for guide accreditation badges
 
