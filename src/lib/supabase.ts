@@ -57,3 +57,41 @@ export type Booking = {
   progress: number;
   guides?: { name: string; avatar_url: string | null } | null;
 };
+
+export type GuideVM = {
+  id: string;
+  name: string;
+  location: string;
+  specialty: string;
+  rating: number;
+  reviews: number;
+  tours: number;
+  price: number;
+  languages: string[];
+  badges: string[];
+  verified: boolean;
+  avatar: string;
+  cover: string;
+  bio: string;
+  specialties: string[];
+};
+
+export function guideRowToVM(g: Guide): GuideVM {
+  return {
+    id: g.id,
+    name: g.name,
+    location: g.location,
+    specialty: g.specialty,
+    rating: Number(g.rating),
+    reviews: g.review_count,
+    tours: g.tours_completed,
+    price: Number(g.price_per_day),
+    languages: g.languages ?? [],
+    badges: g.badges ?? [],
+    verified: g.verified,
+    avatar: g.avatar_url ?? "",
+    cover: g.cover_url ?? "",
+    bio: g.bio ?? "",
+    specialties: g.specialties ?? [],
+  };
+}

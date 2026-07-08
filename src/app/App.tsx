@@ -7,51 +7,14 @@ import {
   Play, ChevronLeft, Plus, QrCode, AlertTriangle, LogOut,
   Wallet, Globe, Languages, Map, Zap, Heart, Share2, Navigation2
 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { supabase, guideRowToVM, type GuideVM } from "../lib/supabase";
+import { formatPeso, formatWallet } from "../lib/format";
 import freighterApi from "@stellar/freighter-api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type GuideVM = {
-  id: string;
-  name: string;
-  location: string;
-  specialty: string;
-  rating: number;
-  reviews: number;
-  tours: number;
-  price: number;
-  languages: string[];
-  badges: string[];
-  verified: boolean;
-  avatar: string;
-  cover: string;
-  bio: string;
-  specialties: string[];
-};
-
 type DestinationVM = { name: string; region: string; guides: number; image: string };
 type TestimonialVM = { name: string; country: string; text: string; avatar: string; rating: number; guide: string };
 type BookingVM = { id: string; guide: string; destination: string; date: string; status: string; amount: number; milestone: string; progress: number; avatar: string };
-
-function guideRowToVM(g: any): GuideVM {
-  return {
-    id: g.id,
-    name: g.name,
-    location: g.location,
-    specialty: g.specialty,
-    rating: Number(g.rating),
-    reviews: g.review_count,
-    tours: g.tours_completed,
-    price: Number(g.price_per_day),
-    languages: g.languages ?? [],
-    badges: g.badges ?? [],
-    verified: g.verified,
-    avatar: g.avatar_url,
-    cover: g.cover_url,
-    bio: g.bio ?? "",
-    specialties: g.specialties ?? [],
-  };
-}
 
 type Page =
   | "landing"
@@ -228,7 +191,7 @@ function GuideCard({ guide, onClick }: { guide: GuideVM; onClick: () => void }) 
             <span className="text-xs text-muted-foreground">({guide.reviews})</span>
           </div>
           <div className="text-right">
-            <span className="text-primary font-bold text-sm">₱{guide.price.toLocaleString()}</span>
+            <span className="text-primary font-bold text-sm">{formatPeso(guide.price)}</span>
             <span className="text-muted-foreground text-xs"> /day</span>
           </div>
         </div>
@@ -714,7 +677,7 @@ function WalletConnectPage({ setPage, setRole }: { setPage: (p: Page) => void; s
                 <div>
                   <p className="text-xs font-bold text-primary">Wallet Connected{network ? ` · ${network}` : ""}</p>
                   <p className="text-xs text-muted-foreground font-mono">
-                    {address ? `${address.slice(0, 4)}…${address.slice(-4)}` : ""} {balance ? `· ${balance} XLM` : ""}
+                    {address ? formatWallet(address) : ""} {balance ? `· ${balance} XLM` : ""}
                   </p>
                 </div>
               </div>
@@ -937,7 +900,7 @@ function GuideProfilePage({ setPage, guideId }: { setPage: (p: Page) => void; gu
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-primary text-sm">₱{tour.price.toLocaleString()}</p>
+                  <p className="font-bold text-primary text-sm">{formatPeso(tour.price)}</p>
                   <button onClick={() => setPage("bookings")} className="mt-1 bg-[#A66A3F] text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-[#8a572f] transition-colors">Book</button>
                 </div>
               </div>
@@ -976,7 +939,7 @@ function GuideProfilePage({ setPage, guideId }: { setPage: (p: Page) => void; gu
         {/* Book CTA */}
         <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-4 sticky bottom-20 md:bottom-4 shadow-lg">
           <div>
-            <p className="font-bold text-foreground" style={{ fontFamily: "Poppins, sans-serif" }}>₱{guide.price.toLocaleString()}<span className="font-normal text-muted-foreground text-sm"> /day</span></p>
+            <p className="font-bold text-foreground" style={{ fontFamily: "Poppins, sans-serif" }}>{formatPeso(guide.price)}<span className="font-normal text-muted-foreground text-sm"> /day</span></p>
             <p className="text-xs text-muted-foreground">Secured by Stellar Escrow</p>
           </div>
           <button onClick={() => setPage("bookings")} className="bg-[#A66A3F] hover:bg-[#8a572f] text-white font-bold px-6 py-3 rounded-2xl flex items-center gap-2 transition-colors">
@@ -1044,7 +1007,7 @@ function BookingsPage() {
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-foreground text-sm">₱{b.amount.toLocaleString()}</p>
+                  <p className="font-bold text-foreground text-sm">{formatPeso(b.amount)}</p>
                   <p className="text-xs text-muted-foreground">Escrow</p>
                 </div>
               </div>
